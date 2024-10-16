@@ -1,0 +1,542 @@
+<!doctype html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+    <title>手旗信号練習ゲーム４</title>
+    <meta name="description" content="手旗信号 カナの送信" />
+
+    <style>*, *:before, *:after {
+  box-sizing: border-box; 
+}
+html {
+  font-size: 13px;
+}
+body {
+  font-family: Avenir, "Open Sans", "Helvetica Neue", Helvetica, Arial, Verdana, Roboto, "游ゴシック", "Yu Gothic", "游ゴシック体", "YuGothic", "ヒラギノ角ゴ Pro W3", "Hiragino Kaku Gothic Pro", "Meiryo UI", "メイリオ", Meiryo, "ＭＳ Ｐゴシック", "MS PGothic", sans-serif;
+  color: #444;
+  background-color: hsl(0, 0%, 96%);
+}
+h1 {
+  font-size: 1.8rem;
+}
+
+</style>
+  </head>
+  <body>
+    <script src="https://cdn.jsdelivr.net/gh/phinajs/phina.js@v0.2.3/build/phina.js"></script>
+    <script>// グローバルに展開
+phina.globalize();
+
+//============================================================================
+// 定数定義
+const FONT_SIZE = 28;
+const FONT_FAMILY = "'KaiTi','Yu Mincho','Monaco','HG行書体'";
+const SCREEN_WIDTH    = 640;
+const SCREEN_HEIGHT   = 1080;
+const MAX_PER_LINE    = 5;                            // ピースの横に並ぶ最大数
+const PIECE_SIZE      = 100;
+const BOARD_PADDING   = 40;
+const TOUCH_DURATION = 400;
+const GESTURE_DURATION = 500;
+
+const MAX_NUM         = MAX_PER_LINE*MAX_PER_LINE;    // ピース全体の数
+const BOARD_SIZE      = SCREEN_WIDTH - BOARD_PADDING*2;
+const BOARD_OFFSET_X  = BOARD_PADDING+PIECE_SIZE/2;
+
+// 手旗信号定義
+const FLAG_SIGNALS = [
+  { flagNo:"-", areaSet:[10,11], imageIndex:0 },
+  { flagNo:"0", areaSet:[], imageIndex:1 },
+  { flagNo:"1", areaSet:[5,8], imageIndex:2 },
+  { flagNo:"2", areaSet:[3,10], imageIndex:3 },
+  { flagNo:"逆2", areaSet:[2,11], imageIndex:4 },
+  { flagNo:"3", areaSet:[1,12], imageIndex:5 },
+  { flagNo:"4", areaSet:[4,9], imageIndex:6 },
+  { flagNo:"5", areaSet:[6,6], imageIndex:7 },
+  { flagNo:"6", areaSet:[4,8], imageIndex:8 },
+  { flagNo:"6", areaSet:[8,8], imageIndex:8 },
+  { flagNo:"7", areaSet:[3,5], imageIndex:9 },
+  { flagNo:"8", areaSet:[8,10], imageIndex:10 },
+  { flagNo:"9", areaSet:[8,12], imageIndex:11 },
+  { flagNo:"10", areaSet:[1,4], imageIndex:12 },
+  { flagNo:"11", areaSet:[], imageIndex:13 },
+  { flagNo:"12", areaSet:[2,3], imageIndex:14 },
+  { flagNo:"13", areaSet:[1,11], imageIndex:15 },
+  { flagNo:"14", areaSet:[4,10], imageIndex:16 },
+];
+// 出題用インデックス
+const QUESTION_INDEX = [2,3,4,5,6,7,8,10,11,12,13,14,15,16,17];
+// カナの手旗信号
+const KANA_SIGNALS = [
+  { kana: "ア", signals: ["9","3"] },
+  { kana: "イ", signals: ["3","2"] },
+  { kana: "ウ", signals: ["6","9"] },
+  { kana: "エ", signals: ["1","逆2","1"] },
+  { kana: "オ", signals: ["1","2","3"] },
+  { kana: "カ", signals: ["8","3"] },
+  { kana: "キ", signals: ["6","2"] },
+  { kana: "ク", signals: ["11"] },
+  { kana: "ケ", signals: ["7","3"] },
+  { kana: "コ", signals: ["8","1"] },
+  { kana: "サ", signals: ["1","12"] },
+  { kana: "シ", signals: ["5","7"] },
+  { kana: "ス", signals: ["1","2","5"] },
+  { kana: "セ", signals: ["9","7"] },
+  { kana: "ソ", signals: ["5","3"] },
+  { kana: "タ", signals: ["11","5"] },
+  { kana: "チ", signals: ["7","逆2"] },
+  { kana: "ツ", signals: ["12","3"] },
+  { kana: "テ", signals: ["6","3"] },
+  { kana: "ト", signals: ["2","5"] },
+  { kana: "ナ", signals: ["1","3"] },
+  { kana: "ニ", signals: ["6"] },
+  { kana: "ヌ", signals: ["9","4"] },
+  { kana: "ネ", signals: ["9","2","1"] },
+  { kana: "ノ", signals: ["3"] },
+  { kana: "ハ", signals: ["10"] },
+  { kana: "ヒ", signals: ["1","7"] },
+  { kana: "フ", signals: ["9"] },
+  { kana: "ヘ", signals: ["4"] },
+  { kana: "ホ", signals: ["1","2","10"] },
+  { kana: "マ", signals: ["9","5"] },
+  { kana: "ミ", signals: ["6","1"] },
+  { kana: "ム", signals: ["7","5"] },
+  { kana: "メ", signals: ["3","5"] },
+  { kana: "モ", signals: ["6","7"] },
+  { kana: "ヤ", signals: ["8","4"] },
+  { kana: "ユ", signals: ["9","1"] },
+  { kana: "ヨ", signals: ["8","6"] },
+  { kana: "ラ", signals: ["5","9"] },
+  { kana: "リ", signals: ["12"] },
+  { kana: "ル", signals: ["3","7"] },
+  { kana: "レ", signals: ["7"] },
+  { kana: "ロ", signals: ["7","8"] },
+  { kana: "ワ", signals: ["2","9"] },
+  { kana: "ヲ", signals: ["1","9"] },
+  { kana: "ン", signals: ["5","1"] },
+  { kana: "゛", signals: ["13"] },
+  { kana: "゜", signals: ["14"] },
+];
+
+// アセット
+var ASSETS = {
+  image: {
+    'flags': 'http://periguejo.synology.me/flag_signal/assets/flags.png',
+    'flag_grid': 'http://periguejo.synology.me/flag_signal/assets/flag_grid.png',
+    'marubatsu': 'http://periguejo.synology.me/flag_signal/assets/marubatsu.png',
+  },
+  sound: {
+    'maru': 'http://periguejo.synology.me/flag_signal/assets/Quiz-Correct_Answer02-1.mp3',
+    'batsu': 'http://periguejo.synology.me/flag_signal/assets/Quiz-Wrong_Buzzer02-1.mp3',
+  },
+};
+
+//============================================================================
+/**
+ * メインシーン
+ */
+ phina.define("MainScene", {
+  // 継承
+  superClass: 'DisplayScene',
+  /*
+   * 初期化
+   */
+  init: function() {
+    // 親クラス初期化
+    this.superInit({
+      width: SCREEN_WIDTH,
+      height: SCREEN_HEIGHT,
+    });
+    // 背景色
+    this.backgroundColor = '#66CC66';
+    
+    this.correctCnt = 0;
+    this.answerFlg = false;
+
+    this.touchPoints = []; // タッチ座標を格納する配列
+    this.gestureTime = [];
+    this.answer = [];
+
+
+    //----------------------------------------------------------------------------
+    // 画面上のオブジェクト生成
+
+    this.shuffle(KANA_SIGNALS);
+    // 問題ラベル
+    this.question = Label({
+      x:this.gridX.center(),
+      y:180 ,
+      fontSize: 172,
+      text:KANA_SIGNALS[0].kana,
+    }).addChildTo(this);    
+
+    // グループ定義
+    this.group = DisplayElement().addChildTo(this);
+    // グリッド
+    var gridX = Grid(BOARD_SIZE, 5);
+    var gridY = Grid(BOARD_SIZE, 5);
+    // シーンアクセス用
+    var self = this;
+
+    // 回答エリア
+    var area = RectangleShape({
+      width: 600,
+      height: 600,
+      fill: "#47B4EB",
+      x: this.gridX.center(),
+      y: 760,
+    }).addChildTo(this);
+    area.setInteractive(true);
+
+    // グリッド線
+    this.flag_grid = Sprite("flag_grid", 500, 500).addChildTo(this);
+    this.flag_grid.setScale(600/500, 600/500);
+    this.flag_grid.setPosition(this.gridX.center(), 760);
+    this.flag_grid.alpha = 0.5;
+
+    // 回答エリアに重ねる画像
+    this.flags = Sprite("flags", 244, 244).addChildTo(this);
+    this.flags.setPosition(this.gridX.center(), 760);
+    this.flags.setScale(-2.4, 2.4);
+    this.flags.setFrameIndex(0);
+    this.flags.alpha = 1;
+
+    // 正解不正解の丸バツ
+    this.marubatsu = Sprite("marubatsu", 240, 240).addChildTo(this);
+    this.marubatsu.setPosition(this.gridX.center(), 760);
+    this.marubatsu.setScale(1.5, 1.5)
+    this.marubatsu.setIndex = 0;
+    this.marubatsu.alpha = 0;
+
+    // 正解カウンタ
+    this.correctLabel = Label({ x:580 , y:40 , text:"0" }).addChildTo(this);
+
+    // 回答画像
+    this.answerImage1 = Sprite("flags", 244, 244).addChildTo(this);
+    this.answerImage1.setPosition(this.gridX.center()-100, 320);
+    this.answerImage1.setScale(0.4, 0.4);
+    this.answerImage1.setFrameIndex(0);
+    this.answerImage1.alpha = 0;
+    this.answerImage2 = Sprite("flags", 244, 244).addChildTo(this);
+    this.answerImage2.setPosition(this.gridX.center(), 320);
+    this.answerImage2.setScale(0.4, 0.4);
+    this.answerImage2.setFrameIndex(0);
+    this.answerImage2.alpha = 0;
+    this.answerImage3 = Sprite("flags", 244, 244).addChildTo(this);
+    this.answerImage3.setPosition(this.gridX.center()+100, 320);
+    this.answerImage3.setScale(0.4, 0.4);
+    this.answerImage3.setFrameIndex(0);
+    this.answerImage3.alpha = 0;
+
+    // 回答ラベル
+    this.answerLabel1 = Label({ x:this.gridX.center()-100, y:400 , text:"" }).addChildTo(this);
+    this.answerLabel2 = Label({ x:this.gridX.center(), y:400 , text:"" }).addChildTo(this);
+    this.answerLabel3 = Label({ x:this.gridX.center()+100, y:400 , text:"" }).addChildTo(this);
+
+    //----------------------------------------------------------------------------
+    // イベント処理
+      /*
+     * 回答エリアタッチ開始
+     */
+     area.onpointstart = function(e) {
+      // タッチしているエリアを取得
+      var areaNo = self.getAreaNo(e.pointer.x - this.left, e.pointer.y - this.top, this.width, this.height);
+      // タッチ位置情報を格納
+      self.touchPoints.push({ x:e.pointer.x - this.left, y:e.pointer.y - this.top, area:areaNo, start:Date.now(), id:e.pointer.id});
+    };
+
+    /*
+     * 回答エリアタッチ終了
+     */
+    area.onpointend = function(e) {
+      // タッチ位置情報のインデックス取得
+      var index = self.touchPoints.findIndex(function(point) {
+        return point.id === e.pointer.id;
+      });
+      // タッチ位置情報削除
+      if (index !== -1) {
+        //console.log(self.touchPoints[index]);
+        // 移動量
+        var moveX = e.pointer.x - this.left - self.touchPoints[index].x;
+        var moveY = e.pointer.y - this.top - self.touchPoints[index].y;
+        //console.log(moveX, moveY);
+        // 11原画の判定
+        if (moveX >= (this.width / 3) && moveY > (this.height / 3)) {
+          self.gestureTime.push(Date.now());
+       }
+        // タッチ位置情報削除
+        self.touchPoints.splice(index, 1);
+        self.answerFlg = false;
+      }
+    };
+  },
+  //--- initここまで
+
+  /*
+   * エリア番号取得
+   */
+  getAreaNo: function(x, y, w, h) {
+    var posNo = 0;
+    if (x < (w / 4)) {
+      posNo = 1;
+    } else if (x < (w / 2)) {
+      posNo = 2;
+    } else if (x < (3 * w / 4)) {
+      posNo = 3;
+    } else if (x <= w) {
+      posNo = 4;
+    }
+    if (y < (h / 4)) {
+    } else if (y < (3 * h / 4)) {
+      posNo += 4;
+    } else if (y <= h) {
+      posNo += 8;
+    }
+    // 補正
+    if (posNo === 7) posNo = 6;
+
+    return posNo;
+  },
+
+  /*
+   * 更新
+   */
+  update: function(app) {
+    var self = this;
+    if (self.answerFlg) return;
+    // ジェスチャー判定
+    if (self.gestureTime.length >= 2) {
+      var gestureDuration1 = Date.now() - self.gestureTime[0];
+      var gestureDuration2 = Date.now() - self.gestureTime[1];
+      //console.log(gestureDuration1, gestureDuration2);
+      if  (gestureDuration1 < GESTURE_DURATION && gestureDuration2 < GESTURE_DURATION) {
+        // 確定処理（11原画）
+        var fsIndex = FLAG_SIGNALS.findIndex(function(fs) {
+          return fs.flagNo == "11";
+        });
+        self.flags.frameIndex = FLAG_SIGNALS[fsIndex].imageIndex;
+        // 番号格納
+        self.answer.push(FLAG_SIGNALS[fsIndex].flagNo);
+
+        if (self.answer.length === 1) {
+              self.answerImage1.setFrameIndex(FLAG_SIGNALS[fsIndex].imageIndex);
+              self.answerImage1.alpha = 1;
+              self.answerLabel1.text = FLAG_SIGNALS[fsIndex].flagNo;
+            } else if (self.answer.length === 2) {
+              self.answerImage2.setFrameIndex(FLAG_SIGNALS[fsIndex].imageIndex);
+              self.answerImage2.alpha = 1;
+              self.answerLabel2.text = FLAG_SIGNALS[fsIndex].flagNo;
+            } else if (self.answer.length === 3) {
+              self.answerImage3.setFrameIndex(FLAG_SIGNALS[fsIndex].imageIndex);
+              self.answerImage3.alpha = 1;
+              self.answerLabel3.text = FLAG_SIGNALS[fsIndex].flagNo;
+            }
+      }
+      // クリア
+      self.gestureTime = [];
+    }
+    // マルチタッチされている場合のみ処理
+    else if (self.touchPoints.length === 2) {
+      var touchDuration1 = Date.now() - self.touchPoints[0].start;
+      var touchDuration2 = Date.now() - self.touchPoints[1].start;
+      // 0.5秒タッチした場合に確定
+      //console.log(touchDuration1, touchDuration2);
+      if (touchDuration1 > TOUCH_DURATION && touchDuration2 > TOUCH_DURATION) {
+        // タッチエリアの配列定義（ソート）
+        var area = [self.touchPoints[0].area, self.touchPoints[1].area];
+        area.sort(function(a,b) {
+          if (a < b) return -1;
+          if (a > b) return 1;
+          return 0
+        });
+        // 手旗信号定義から一致する信号を探す
+        var fsIndex = FLAG_SIGNALS.findIndex(function(fs) {
+          return (fs.areaSet[0] === area[0] && fs.areaSet[1] === area[1]);
+        });
+        if (fsIndex != null && fsIndex >= 0) {
+          //> 番号確定
+          self.flags.frameIndex = FLAG_SIGNALS[fsIndex].imageIndex;
+          self.answerFlg = true;
+          
+          var flagNo = FLAG_SIGNALS[fsIndex].flagNo;
+          if (flagNo === "-") {
+            // 原姿に戻ったら判定
+            self.judge();
+          } else {
+            // 番号格納
+            self.answer.push(flagNo);
+            // 回答画像、ラベル表示
+
+            if (self.answer.length === 1) {
+              self.answerImage1.setFrameIndex(FLAG_SIGNALS[fsIndex].imageIndex);
+              self.answerImage1.alpha = 1;
+              self.answerLabel1.text = flagNo;
+            } else if (self.answer.length === 2) {
+              self.answerImage2.setFrameIndex(FLAG_SIGNALS[fsIndex].imageIndex);
+              self.answerImage2.alpha = 1;
+              self.answerLabel2.text = flagNo;
+            } else if (self.answer.length === 3) {
+              self.answerImage3.setFrameIndex(FLAG_SIGNALS[fsIndex].imageIndex);
+              self.answerImage3.alpha = 1;
+              self.answerLabel3.text = flagNo;
+            }
+
+          }
+        }
+        // 時間リセット
+        self.touchPoints[0].start = Date.now();
+        self.touchPoints[1].start = Date.now();
+      }
+    }  
+  },
+
+  /*
+   * 正誤判定処理
+   */
+  judge: function() {
+    var self = this;
+    //self.answerFlg = true;
+    var ksIndex = KANA_SIGNALS.findIndex(function(ks) {
+      return (ks.signals[0] === self.answer[0] && ks.signals[1] === self.answer[1] && ks.signals[2] === self.answer[2]);
+    });
+    if (ksIndex != null && ksIndex >= 0) {
+      //> カナ認識
+      if (KANA_SIGNALS[ksIndex].kana === self.question.text) {
+        //> 正解
+        self.correctCnt++;
+        this.marubatsu.frameIndex = 0;
+        this.marubatsu.alpha = 0.8;
+        SoundManager.play('maru');
+        setTimeout(function() {
+          self.answerImage1.alpha = 0;
+          self.answerImage2.alpha = 0;
+          self.answerImage3.alpha = 0;
+          self.answerLabel1.text = "";
+          self.answerLabel2.text = "";
+          self.answerLabel3.text = "";
+          self.marubatsu.alpha = 0;
+          self.shuffle(KANA_SIGNALS);
+          self.question.text = KANA_SIGNALS[0].kana;
+        }, 1200);
+      } else {
+        //> 不正解
+        self.correctCnt = 0;
+        this.marubatsu.frameIndex = 1;
+        this.marubatsu.alpha = 0.8;
+        SoundManager.play('batsu');
+        setTimeout(function() {
+          self.answerImage1.alpha = 0;
+          self.answerImage2.alpha = 0;
+          self.answerImage3.alpha = 0;
+          self.answerLabel1.text = "";
+          self.answerLabel2.text = "";
+          self.answerLabel3.text = "";
+          self.marubatsu.alpha = 0;
+        }, 1200);
+      }
+    } else {
+      // 認識できない信号
+      self.correctCnt = 0;
+      this.marubatsu.frameIndex = 1;
+      this.marubatsu.alpha = 0.8;
+      SoundManager.play('batsu');
+      setTimeout(function() {
+        self.marubatsu.alpha = 0;
+      }, 1200);
+    }
+    // 時間リセット
+    self.touchPoints.forEach(function(point) {
+      point.start = Date.now();
+    });
+    self.correctLabel.text = self.correctCnt;
+    self.answer = [];
+  },
+
+  /*
+   * 配列のシャッフル
+   */
+  shuffle: function (array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      let j = Math.floor(Math.random() * (i + 1)); // 0 から i のランダムなインデックス
+      [array[i], array[j]] = [array[j], array[i]]; // 要素を入れ替えます
+    }
+  },
+});
+
+/**
+ * 回答ボタンクラス
+ */
+phina.define('Piece', {
+  superClass: 'Button',
+
+  init: function(index, label) {
+    this.superInit({
+      width: PIECE_SIZE,
+      height: PIECE_SIZE,
+      text: label,
+    });
+
+    this.index = index;
+  },
+});
+
+phina.define('PieceArea', {
+  superClass: 'Button',
+
+  init: function(index, x, y, w, h) {
+    this.superInit({
+      x: x+w/2,
+      y: y+h/2,
+      width: w,
+      height: h,
+    });
+
+    this.index = index;
+  }
+});
+
+/**
+ * メイン処理
+ */
+phina.main(function() {
+  let dom = document.createElement('div');
+  let resize = () => {
+    let e = app.domElement;
+    let c = app.canvas;
+    let s = e.style;
+    let ds = dom.style;
+    let rect = e.getBoundingClientRect();
+    ds.width = 0;
+    ds.height = 0;
+    ds.position = 'absolute';
+    ds.left = rect.left + 'px';
+    ds.top = rect.top + 'px';
+    let rate = parseInt(s.width) / c.width;
+    ds.transform = 'scale(' + rate + ',' + rate + ')';
+  };
+  
+  window.addEventListener('resize', resize);
+  Scene.prototype.baseDom = dom;
+  // アプリケーションを生成
+  var app = GameApp({
+    // MainScene から開始
+    startLabel: 'main',
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    // アセット読み込み
+    assets: ASSETS,
+});
+  // fps表示
+  app.baseDom = dom;
+  // 実行
+  app.run();
+  resize();
+  app.domElement.parentNode.insertBefore(dom, app.domElement.nextSibling);
+});
+</script>
+  </body>
+</html>

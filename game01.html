@@ -1,0 +1,264 @@
+<!doctype html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+    <title>手旗信号練習ゲーム１</title>
+    <meta name="description" content="手旗信号 数字の読み取り" />
+
+    <style>*, *:before, *:after {
+  box-sizing: border-box; 
+}
+html {
+  font-size: 13px;
+}
+body {
+  font-family: Avenir, "Open Sans", "Helvetica Neue", Helvetica, Arial, Verdana, Roboto, "游ゴシック", "Yu Gothic", "游ゴシック体", "YuGothic", "ヒラギノ角ゴ Pro W3", "Hiragino Kaku Gothic Pro", "Meiryo UI", "メイリオ", Meiryo, "ＭＳ Ｐゴシック", "MS PGothic", sans-serif;
+  color: #444;
+  background-color: hsl(0, 0%, 96%);
+}
+h1 {
+  font-size: 1.8rem;
+}
+
+</style>
+  </head>
+  <body>
+    <script src="https://cdn.jsdelivr.net/gh/phinajs/phina.js@v0.2.3/build/phina.js"></script>
+    <script>// グローバルに展開
+phina.globalize();
+
+//============================================================================
+// 定数定義
+const FONT_SIZE = 28;
+const FONT_FAMILY = "'KaiTi','Yu Mincho','Monaco','HG行書体'";
+const SCREEN_WIDTH    = 640;
+const SCREEN_HEIGHT   = 960;
+const MAX_PER_LINE    = 5;                            // ピースの横に並ぶ最大数
+const PIECE_SIZE      = 100;
+const BOARD_PADDING   = 40;
+
+const MAX_NUM         = MAX_PER_LINE*MAX_PER_LINE;    // ピース全体の数
+const BOARD_SIZE      = SCREEN_WIDTH - BOARD_PADDING*2;
+const BOARD_OFFSET_X  = BOARD_PADDING+PIECE_SIZE/2;
+
+// 手旗番号（回答パネル生成に利用）
+const FLAG_NUMBER = ["0","1","2","逆2","3","4","5","6","7","8","9","10","11","12","13","14"];
+// 手旗番号のインデックス→画像のインデックス（回答パネル生成、正誤判定に利用）
+const INDEX_MAPPING = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16];
+
+// ランダム数字生成
+const randRange = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
+
+// アセット
+var ASSETS = {
+  image: {
+    'flags': 'http://periguejo.synology.me/flag_signal/assets/flags.png',
+    'marubatsu': 'http://periguejo.synology.me/flag_signal/assets/marubatsu.png',
+  },
+  sound: {
+    'maru': 'http://periguejo.synology.me/flag_signal/assets/Quiz-Correct_Answer02-1.mp3',
+    'batsu': 'http://periguejo.synology.me/flag_signal/assets/Quiz-Wrong_Buzzer02-1.mp3',
+  },
+};
+
+//============================================================================
+/**
+ * メインシーン
+ */
+ phina.define("MainScene", {
+  // 継承
+  superClass: 'DisplayScene',
+  /*
+   * 初期化
+   */
+  init: function() {
+    // 親クラス初期化
+    this.superInit({
+      width: SCREEN_WIDTH,
+      height: SCREEN_HEIGHT,
+    });
+    // 背景色
+    this.backgroundColor = '#66CC66';
+    
+    this.currentIndex = 0;
+    this.correctCnt = 0;
+    this.answerFlg = false;
+
+    //----------------------------------------------------------------------------
+    // 画面上のオブジェクト生成
+
+    // 手旗画像
+    this.flags = Sprite("flags", 244, 244).addChildTo(this);
+    this.flags.setPosition(this.gridX.center(), 200);
+    this.flags.setScale(1.5, 1.5);
+    this.flags.backgroundColor = "white";
+    this.flags.stroke = 'black';
+    this.flags.lineWidth = 1;
+    this.flags.setFrameIndex(0);
+
+    // グループ定義
+    this.group = DisplayElement().addChildTo(this);
+    // グリッド
+    var gridX = Grid(BOARD_SIZE, 5);
+    var gridY = Grid(BOARD_SIZE, 5);
+    // シーンアクセス用
+    var self = this;
+
+    // 正解不正解の丸バツ
+    this.marubatsu = Sprite("marubatsu", 240, 240).addChildTo(this);
+    this.marubatsu.setPosition(this.gridX.center(), 200);
+    this.marubatsu.setIndex = 0;
+    this.marubatsu.alpha = 0;
+
+    // 回答用ボタン
+    for (i = 0; i < FLAG_NUMBER.length; i++) {
+      // グリッド上でのインデックス
+      var xIndex = i%MAX_PER_LINE;
+      var yIndex = Math.floor(i/MAX_PER_LINE);
+ 
+      var p = Piece(i, FLAG_NUMBER[i]).addChildTo(this);
+
+      p.x = gridX.span(xIndex)+BOARD_OFFSET_X;
+      p.y = gridY.span(yIndex+1)+440;
+
+      p.onpointstart = function() {
+        self.click(this);
+      };
+    }
+    
+    // 開始ボタン
+    var button = Button({
+      x: this.gridX.center(),             // x座標
+      y: 440,             // y座標
+      width: 200,         // 横サイズ
+      height: 80,        // 縦サイズ
+      text: "開始",     // 表示文字
+    }).addChildTo(this);
+
+    // 正解カウンタ
+    this.correctLabel = Label({ x:580 , y:40 , text:"0" }).addChildTo(this);
+
+    //----------------------------------------------------------------------------
+    // イベント処理
+
+    /*
+     * 「開始」ボタン処理
+     */
+    button.onpointend = function(){
+      var idx = randRange(1, 16)
+      self.currentIndex = idx;
+      self.flags.setFrameIndex(idx);
+    };
+  },
+  //--- initここまで
+
+  /*
+   * 開始
+   */
+/*
+   onenter: function() {
+    var scene = CountScene({
+//      backgroundColor: 'rgba(100, 100, 100, 1)',
+      count: ['Ready'],
+      fontSize: 100,
+    });
+    this.app.pushScene(scene);
+  },
+*/
+  /*
+   * 「回答」ボタン処理
+   */
+  click: function(piece) {
+    var self = this;
+    // 正解判定
+    if (this.currentIndex == INDEX_MAPPING[piece.index]) {
+      //> 正解
+      self.correctCnt++;
+      this.marubatsu.frameIndex = 0;
+      this.marubatsu.alpha = 1;
+      SoundManager.play('maru');
+      setTimeout(function() {
+        self.marubatsu.alpha = 0;
+        var idx = randRange(1, 16)
+        self.flags.setFrameIndex(idx);
+        self.currentIndex = idx;
+      }, 1200);
+    } else {
+      //> 不正解
+      self.correctCnt = 0;
+      this.marubatsu.frameIndex = 1;
+      this.marubatsu.alpha = 1;
+      SoundManager.play('batsu');
+      setTimeout(function() {
+        self.marubatsu.alpha = 0;
+      }, 1200);
+    }
+    self.correctLabel.text = self.correctCnt;
+  },
+});
+
+/**
+ * 回答ボタンクラス
+ */
+phina.define('Piece', {
+  superClass: 'Button',
+
+  init: function(index, label) {
+    this.superInit({
+      width: PIECE_SIZE,
+      height: PIECE_SIZE,
+      text: label,
+    });
+
+    this.index = index;
+  },
+});
+
+/**
+ * メイン処理
+ */
+phina.main(function() {
+  let dom = document.createElement('div');
+  let resize = () => {
+    let e = app.domElement;
+    let c = app.canvas;
+    let s = e.style;
+    let ds = dom.style;
+    let rect = e.getBoundingClientRect();
+    ds.width = 0;
+    ds.height = 0;
+    ds.position = 'absolute';
+    ds.left = rect.left + 'px';
+    ds.top = rect.top + 'px';
+    let rate = parseInt(s.width) / c.width;
+    ds.transform = 'scale(' + rate + ',' + rate + ')';
+  };
+  
+  window.addEventListener('resize', resize);
+  Scene.prototype.baseDom = dom;
+  // アプリケーションを生成
+  var app = GameApp({
+    // MainScene から開始
+    startLabel: 'main',
+//    startLabel: location.search.substr(1).toObject().scene || 'title',
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+//    backgroundColor: "#ccc",
+    // アセット読み込み
+    assets: ASSETS,
+});
+  // fps表示
+//  app.enableStats();
+  app.baseDom = dom;
+  // 実行
+  app.run();
+  resize();
+  app.domElement.parentNode.insertBefore(dom, app.domElement.nextSibling);
+});
+</script>
+  </body>
+</html>
