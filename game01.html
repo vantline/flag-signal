@@ -57,12 +57,12 @@ const randRange = (min, max) => Math.floor(Math.random() * (max - min + 1) + min
 // アセット
 var ASSETS = {
   image: {
-    'flags': 'http://periguejo.synology.me/flag_signal/assets/flags.png',
-    'marubatsu': 'http://periguejo.synology.me/flag_signal/assets/marubatsu.png',
+    'flags': 'assets/flags.png',
+    'marubatsu': 'assets/marubatsu.png',
   },
   sound: {
-    'maru': 'http://periguejo.synology.me/flag_signal/assets/Quiz-Correct_Answer02-1.mp3',
-    'batsu': 'http://periguejo.synology.me/flag_signal/assets/Quiz-Wrong_Buzzer02-1.mp3',
+    'maru': 'assets/Quiz-Correct_Answer02-1.mp3',
+    'batsu': 'assets/Quiz-Wrong_Buzzer02-1.mp3',
   },
 };
 
@@ -167,21 +167,6 @@ phina.define("MainScene", {
   //----------------------------------------------------------------------------
   // 初期化【ここまで】
   //============================================================================
-
-//   //============================================================================
-//   // 開始処理【ここから】
-//   //----------------------------------------------------------------------------
-//    onenter: function() {
-//     var scene = CountScene({
-// //      backgroundColor: 'rgba(100, 100, 100, 1)',
-//       count: ['Ready'],
-//       fontSize: 100,
-//     });
-//     this.app.pushScene(scene);
-//   },
-//   //----------------------------------------------------------------------------
-//   // 開始処理【ここまで】
-//   //============================================================================
 
   //============================================================================
   // 「回答」ボタン処理【ここから】
