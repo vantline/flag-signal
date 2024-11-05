@@ -47,6 +47,10 @@ const BOARD_SIZE      = SCREEN_WIDTH - BOARD_PADDING*2;
 const BOARD_OFFSET_X  = BOARD_PADDING+PIECE_SIZE/2;
 
 // 手旗の番号→画像のインデックス（ヒント表示の画像
+//  ・原画
+//  ・手旗画像のspritインデックス
+// 利用箇所：
+//  ・問題、ヒント画像表示（原画→画像インデックス）
 const FLAG_NO2IMAGE_INDEX = new Map([
   ["-", 0],
 //  ["0", 1],   // カナで0は使わない
@@ -66,7 +70,12 @@ const FLAG_NO2IMAGE_INDEX = new Map([
   ["13", 15],
   ["14", 16],
 ]);
-// カナの手旗信号（ドロップダウンの生成、ヒント表示に利用）
+// カナの手旗信号
+//  ・kana: カナ
+//  ・signals: 原画（配列）
+// 利用箇所：
+//  ・ドロップダウンの生成（kana）
+//  ・ヒントの表示用の原画取得（kana→signals）
 const KANA_SIGNALS = [
   { kana: "ア", signals: ["9","3"] },
   { kana: "イ", signals: ["3","2"] },
@@ -164,7 +173,7 @@ phina.define("MainScene", {
     // 背景色
     this.backgroundColor = '#66CC66';
     
-    this.currentIndex = 0;
+    this.currentIndex = 0;    // 出題中の問題のKANA_SIGNALSのインデックス
     this.correctCnt = 0;
     this.answerFlg = false;
 
@@ -295,18 +304,19 @@ phina.define("MainScene", {
     reload.onpointend = function(){
       var sigidx = 0;
       var intervalId = setInterval(function() {
-        var signal = KANA_SIGNALS[self.currentIndex].signals[sigidx];
-        var idx2 = FLAG_NO2IMAGE_INDEX.get(signal);
+        var signal = KANA_SIGNALS[self.currentIndex].signals[sigidx]; // 出題中の原画（sigidx番目）
+        var idx2 = FLAG_NO2IMAGE_INDEX.get(signal);   // ↑原画の画像インデックス
         console.log(signal, idx2);
         //if (sigidx === KANA[idx].signals.length1) {
         if (signal == null) {
-          self.flags.setFrameIndex(0);
-          clearInterval(intervalId); // タイマーを停止
+          // 終了処理（KANA_SIGNALSのsigidx番目が存在しない）
+          self.flags.setFrameIndex(0);  // 出題の画像を原始に戻す
+          clearInterval(intervalId);    // タイマーを停止
         } else {
-          self.flags.setFrameIndex(idx2);
+          self.flags.setFrameIndex(idx2); // 原画画像を表示
         }
         sigidx++;
-      }, 1200);
+      }, 1200); // 表示切替間隔
     };
 
     /**

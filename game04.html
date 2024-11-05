@@ -49,6 +49,12 @@ const BOARD_SIZE      = SCREEN_WIDTH - BOARD_PADDING * 2;
 const BOARD_OFFSET_X  = BOARD_PADDING + PIECE_SIZE / 2;
 
 // 手旗信号定義
+//  flagNo: 原画
+//  areaSet: タップエリア（2次元配列）
+//  imageIndex: 手旗画像のspritインデックス
+// 利用箇所：
+//  ・タップエリアから原画を取得（areaSet→flagNo）
+//  ・ヒント画像表示（flagNo→imageIndex）
 const FLAG_SIGNALS = [
   { flagNo:"-", areaSet:[10,11], imageIndex:0 },
   { flagNo:"0", areaSet:[], imageIndex:1 },
@@ -69,9 +75,14 @@ const FLAG_SIGNALS = [
   { flagNo:"13", areaSet:[1,11], imageIndex:15 },
   { flagNo:"14", areaSet:[4,10], imageIndex:16 },
 ];
-// 出題用インデックス
+// 出題用インデックス（未使用？）
 const QUESTION_INDEX = [2,3,4,5,6,7,8,10,11,12,13,14,15,16,17];
 // カナの手旗信号
+//  kana: カナ
+//  signals: 原画（配列）
+// 利用箇所：
+//  ・問題のテキスト表示（kana）
+//  ・解答のindex取得（タップした原画の配列とsignalsが一致した要素のindex）
 const KANA_SIGNALS = [
   { kana: "ア", signals: ["9","3"] },
   { kana: "イ", signals: ["3","2"] },
@@ -292,7 +303,16 @@ phina.define("MainScene", {
 
   //============================================================================
   // エリア番号取得【ここから】
-  //----------------------------------------------------------------------------
+  // ┌──┬──┬──┬──┐
+  // │ 1│ 2│ 3│ 4│
+  // ├──┼──┴──┼──┤
+  // │  │     │  │
+  // │ 5│  6  │ 8│
+  // │  │     │  │
+  // ├──┼──┬──┼──┤
+  // │ 9│10│11│12│
+  // └──┴──┴──┴──┘
+ //----------------------------------------------------------------------------
   getAreaNo: function(x, y, w, h) {
     var posNo = 0;
     if (x < (w / 4)) {
